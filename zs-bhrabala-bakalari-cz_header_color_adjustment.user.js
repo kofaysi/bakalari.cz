@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Unique Header Color at zs-bhrabala.bakalari.cz
 // @namespace    https://github.com/kofaysi/bakalari.cz/blob/main/zs-bhrabala-bakalari-cz_header_color_adjustment.user.js
-// @version      0.5
+// @version      0.6
 // @description  Sets a unique color on #topheader based on the .lusername text, flips if too dark
 // @match        https://zs-bhrabala.bakalari.cz/*
 // @author       https://github.com/kofaysi
@@ -11,113 +11,81 @@
 (function() {
     'use strict';
 
-    // 1. Grab the element with the lusername class
+    // 1) Locate the element with class "lusername"
     const usernameElement = document.querySelector('.lusername');
     if (!usernameElement) return;
 
-    // 2. Get the text from the element
+    // Grab its text content
     const usernameText = usernameElement.textContent.trim();
 
-    // Convert the string to a hash value
+    // 2) Convert the string to a numerical hash
+    //    (Simple 32-bit string hash)
     function stringToHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
-        return hash;
+        // Force it into unsigned 32-bit
+        return hash >>> 0;
     }
 
-    // Map the hash to an HSL color, focusing on the hue
-    // with a fixed saturation/lightness
-    function stringToHSL(str) {
-        const hash = stringToHash(str);
-        const hue = Math.abs(hash) % 360; // 0..359
-        const saturation = 70;           // tweak as you wish
-        const lightness = 50;            // tweak as you wish
-
-        return { h: hue, s: saturation, l: lightness };
+    // 3) We'll get the hex representation of the hash,
+    //    then take the last 6 characters of that hex string.
+    //    If it's shorter than 6, we left-pad with zeros.
+    function getLast6HexChars(num) {
+        let hex = num.toString(16);
+        // Ensure at least 6 characters
+        hex = hex.padStart(6, '0');
+        // Take the last 6
+        return hex.slice(-6);
     }
 
-    // Convert HSL to RGB
-    // Adapts a common HSL-to-RGB formula
-    function hslToRgb(h, s, l) {
-        s /= 100;
-        l /= 100;
-
-        const c = (1 - Math.abs(2 * l - 1)) * s;
-        const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-        const m = l - c / 2;
-
-        let rPrime = 0, gPrime = 0, bPrime = 0;
-
-        if (0 <= h && h < 60) {
-            rPrime = c; gPrime = x; bPrime = 0;
-        } else if (60 <= h && h < 120) {
-            rPrime = x; gPrime = c; bPrime = 0;
-        } else if (120 <= h && h < 180) {
-            rPrime = 0; gPrime = c; bPrime = x;
-        } else if (180 <= h && h < 240) {
-            rPrime = 0; gPrime = x; bPrime = c;
-        } else if (240 <= h && h < 300) {
-            rPrime = x; gPrime = 0; bPrime = c;
-        } else {
-            rPrime = c; gPrime = 0; bPrime = x;
+    // 4) Convert each hex digit to decimal, mod 4 => [0..3],
+    //    then back to a hex digit => the "dark color" portion.
+    function getDarkColorHex(modBaseHex) {
+        let darkColor = '';
+        for (let i = 0; i < modBaseHex.length; i++) {
+            const digit = parseInt(modBaseHex[i], 16);  // 0..15
+            const modVal = digit % 4;                  // 0..3
+            darkColor += modVal.toString(16);          // '0'..'3'
         }
-
-        const r = Math.round((rPrime + m) * 255);
-        const g = Math.round((gPrime + m) * 255);
-        const b = Math.round((bPrime + m) * 255);
-        return { r, g, b };
+        return darkColor; // e.g. '102301' which is in [0..3] for each nibble
     }
 
-    // Convert RGB to hex
-    function rgbToHex(r, g, b) {
-        const toHex = (val) => {
-            const hex = val.toString(16);
-            return hex.length === 1 ? '0' + hex : hex;
-        };
-        return '#' + toHex(r) + toHex(g) + toHex(b);
+    // 5) Subtract from #FFFFFF => invert to get the "light color"
+    function invertDarkColor(darkHex) {
+        // Convert our 6-digit hex to decimal
+        const darkVal = parseInt(darkHex, 16);  // 0..0x333333
+        // Invert: 0xFFFFFF - darkVal
+        const lightVal = 0xFFFFFF - darkVal;
+        // Convert back to 6-char hex
+        let lightHex = lightVal.toString(16).padStart(6, '0');
+        return '#' + lightHex;
     }
 
-    // Luminance-based brightness check
-    function getBrightness(r, g, b) {
-        // 0.299*r + 0.587*g + 0.114*b is a common formula
-        return 0.299 * r + 0.587 * g + 0.114 * b;
-    }
+    // ---- Main Flow ----
 
-    // Invert an RGB color
-    function invertColor(r, g, b) {
-        return { r: 255 - r, g: 255 - g, b: 255 - b };
-    }
+    // a) Hash the username
+    const hash = stringToHash(usernameText);
 
-    // MAIN SCRIPT
+    // b) Get the last 6 hex digits (padded if needed)
+    const last6Hex = getLast6HexChars(hash);
 
-    // 3. Get the HSL color from the username
-    const { h, s, l } = stringToHSL(usernameText);
+    // c) Map each digit -> mod 4 -> (0..3) => dark color
+    const darkColorHex = getDarkColorHex(last6Hex); // e.g. '00132a' => '001122' (mod 4)
 
-    // 4. Convert to RGB
-    let { r, g, b } = hslToRgb(h, s, l);
+    // d) Invert the dark color => light color
+    const finalColor = invertDarkColor(darkColorHex); // #FFFFFF - #00xxxx
 
-    // 5. If it's too dark, invert
-    if (getBrightness(r, g, b) < 128) {
-        const inverted = invertColor(r, g, b);
-        r = inverted.r;
-        g = inverted.g;
-        b = inverted.b;
-    }
-
-    // 6. Convert to final hex color
-    const finalColor = rgbToHex(r, g, b);
-
-    // 7. Apply to #topheader
+    // e) Apply to #topheader
     const topHeader = document.querySelector('#topheader');
     if (topHeader) {
         topHeader.style.backgroundColor = finalColor;
     }
 
-    // 8. Apply to .navbar.bk-navtop
-    const navbarTop = document.querySelector('.navbar.bk-navtop');
-    if (navbarTop) {
-        navbarTop.style.backgroundColor = finalColor;
+    // f) Apply to .navbar.bk-navtop
+    const navTop = document.querySelector('.navbar.bk-navtop');
+    if (navTop) {
+        navTop.style.backgroundColor = finalColor;
     }
 })();
