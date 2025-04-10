@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Unique Header Color at zs-bhrabala.bakalari.cz
 // @namespace    https://github.com/kofaysi/bakalari.cz/blob/main/zs-bhrabala-bakalari-cz_header_color_adjustment.user.js
-// @version      0.4
+// @version      0.5
 // @description  Sets a unique color on #topheader based on the .lusername text, flips if too dark
 // @match        https://zs-bhrabala.bakalari.cz/*
 // @author       https://github.com/kofaysi
@@ -15,10 +15,10 @@
     const usernameElement = document.querySelector('.lusername');
     if (!usernameElement) return;
 
-    // Get the text from the element
+    // 2. Get the text from the element
     const usernameText = usernameElement.textContent.trim();
 
-    // 2. Convert the string to a hash value
+    // Convert the string to a hash value
     function stringToHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
@@ -27,22 +27,20 @@
         return hash;
     }
 
-    // 3. Convert the hash to HSL color (focus on H)
-    //    We'll use a single hue (0-359), with fixed saturation & lightness
+    // Map the hash to an HSL color, focusing on the hue
+    // with a fixed saturation/lightness
     function stringToHSL(str) {
         const hash = stringToHash(str);
-        // Hue in [0..359]
-        const hue = Math.abs(hash) % 360; 
-        const saturation = 70; // can be tweaked
-        const lightness = 50;  // can be tweaked
+        const hue = Math.abs(hash) % 360; // 0..359
+        const saturation = 70;           // tweak as you wish
+        const lightness = 50;            // tweak as you wish
 
         return { h: hue, s: saturation, l: lightness };
     }
 
-    // Convert HSL to RGB (returns {r, g, b})
-    // Formula adapted from common HSL-to-RGB conversions
+    // Convert HSL to RGB
+    // Adapts a common HSL-to-RGB formula
     function hslToRgb(h, s, l) {
-        // Convert percentages to [0..1]
         s /= 100;
         l /= 100;
 
@@ -66,14 +64,13 @@
             rPrime = c; gPrime = 0; bPrime = x;
         }
 
-        return {
-            r: Math.round((rPrime + m) * 255),
-            g: Math.round((gPrime + m) * 255),
-            b: Math.round((bPrime + m) * 255)
-        };
+        const r = Math.round((rPrime + m) * 255);
+        const g = Math.round((gPrime + m) * 255);
+        const b = Math.round((bPrime + m) * 255);
+        return { r, g, b };
     }
 
-    // Convert RGB to hex format
+    // Convert RGB to hex
     function rgbToHex(r, g, b) {
         const toHex = (val) => {
             const hex = val.toString(16);
@@ -82,44 +79,45 @@
         return '#' + toHex(r) + toHex(g) + toHex(b);
     }
 
-    // Calculate brightness (0..255) for a color (r,g,b)
+    // Luminance-based brightness check
     function getBrightness(r, g, b) {
-        // weighted formula for luminance
+        // 0.299*r + 0.587*g + 0.114*b is a common formula
         return 0.299 * r + 0.587 * g + 0.114 * b;
     }
 
-    // Invert the RGB color
+    // Invert an RGB color
     function invertColor(r, g, b) {
-        return {
-            r: 255 - r,
-            g: 255 - g,
-            b: 255 - b
-        };
+        return { r: 255 - r, g: 255 - g, b: 255 - b };
     }
 
-    // ---- MAIN LOGIC ----
+    // MAIN SCRIPT
 
-    // 4. Get the color from username
-    const hslColor = stringToHSL(usernameText);
+    // 3. Get the HSL color from the username
+    const { h, s, l } = stringToHSL(usernameText);
 
-    // 5. Convert HSL -> RGB
-    let { r, g, b } = hslToRgb(hslColor.h, hslColor.s, hslColor.l);
+    // 4. Convert to RGB
+    let { r, g, b } = hslToRgb(h, s, l);
 
-    // 6. Check if it’s "dark" (tweak threshold if you like)
+    // 5. If it's too dark, invert
     if (getBrightness(r, g, b) < 128) {
-        // invert if too dark
         const inverted = invertColor(r, g, b);
         r = inverted.r;
         g = inverted.g;
         b = inverted.b;
     }
 
-    // 7. Convert final color to hex
+    // 6. Convert to final hex color
     const finalColor = rgbToHex(r, g, b);
 
-    // 8. Apply the color to #topheader
+    // 7. Apply to #topheader
     const topHeader = document.querySelector('#topheader');
     if (topHeader) {
         topHeader.style.backgroundColor = finalColor;
+    }
+
+    // 8. Apply to .navbar.bk-navtop
+    const navbarTop = document.querySelector('.navbar.bk-navtop');
+    if (navbarTop) {
+        navbarTop.style.backgroundColor = finalColor;
     }
 })();
