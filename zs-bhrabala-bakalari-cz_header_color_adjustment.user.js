@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Unique Header Color
+// @name         Unique Header Color at zs-bhrabala.bakalari.cz/
 // @namespace    https://github.com/kofaysi/bakalari.cz/blob/main/zs-bhrabala-bakalari-cz_header_color_adjustment.user.js
 // @version      0.1
 // @description  Sets a unique color on #topheader based on the .lusername text
