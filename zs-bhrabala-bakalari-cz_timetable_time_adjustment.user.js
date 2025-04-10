@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Timetable Time Adjustment at zs-bhrabala.bakalari.cz
-// @namespace    https://github.com/kofaysi/bakalari.cz
+// @namespace    https://github.com/kofaysi/bakalari.cz/blob/main/zs-bhrabala-bakalari-cz_timetable_time_adjustment.user.js
 // @version      1.0
 // @description  Shift timetable times earlier by 15m (before 10:00) or 10m (10:00+)
 // @match        https://zs-bhrabala.bakalari.cz/next/rozvrh.aspx
