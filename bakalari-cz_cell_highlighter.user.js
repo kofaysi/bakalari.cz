@@ -14,7 +14,7 @@
 
   // ===== USER CONFIG =====
   const RULES = [
-    { text: "1.V", color: "#ff9500" },
+    { text: "1.V", color: "#2FA4A9" },
     //{ text: "Fousová", color: "#34c759" },
     //{ text: "odpadá", color: "#ff3b30" },
   ];
